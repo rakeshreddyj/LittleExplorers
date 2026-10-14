@@ -246,7 +246,8 @@ final class KidStore: ObservableObject {
             },
             days: recentDays.map { k in
                 let d = progress.days[k]!
-                return .init(date: k, secs: d.secs, rounds: d.rounds, stars: d.stars, questions: d.questions, correct: d.correct)
+                return .init(date: k, secs: d.secs, rounds: d.rounds, stars: d.stars, questions: d.questions, correct: d.correct,
+                             stories: d.stories, spoken: d.spoken)
             },
             stickers: progress.stickers.count,
             today: Self.dayKey())

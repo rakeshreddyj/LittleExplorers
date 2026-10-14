@@ -31,7 +31,10 @@ struct KidProfile: Codable, Identifiable, Equatable {
 
 struct KidSyncPayload: Encodable {
     struct Skill: Encodable { let skill_id: String; let name: String; let subject: String; let lvl: Int; let correct: Int; let total: Int }
-    struct Day: Encodable { let date: String; let secs: Int; let rounds: Int; let stars: Int; let questions: Int; let correct: Int }
+    struct Day: Encodable {
+        let date: String; let secs: Int; let rounds: Int; let stars: Int; let questions: Int; let correct: Int
+        let stories: Int; let spoken: Int   // for the weekly report in HomeBuddy
+    }
     let skills: [Skill]
     let days: [Day]
     let stickers: Int

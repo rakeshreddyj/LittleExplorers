@@ -65,6 +65,11 @@ plants, and more) and level 3.
 - Adaptive levels: 4 right in a row makes questions harder, 3 of the last 4 wrong makes them easier, and missed questions come back later.
 - Every question is read aloud (Indian English voice), so pre-readers can play.
 
+## App icon
+An owl explorer in a safari hat reading a book at sunrise. It's original vector artwork drawn in code by
+`tools/make_icon.swift` (no emoji or third-party art). To regenerate it:
+`swift tools/make_icon.swift LittleExplorers/Assets.xcassets/AppIcon.appiconset/icon-1024.png`
+
 ## Run
 Open `LittleExplorers.xcodeproj` in Xcode and run it on an iPad. The project uses synchronized folders, so new
 files in `LittleExplorers/` are picked up automatically and there's no XcodeGen step.
