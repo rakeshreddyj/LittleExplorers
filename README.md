@@ -12,6 +12,16 @@ FastAPI service (`/api/v1/kids`, running on `healthbuddy-vm`), and parents manag
 - **Time & Money**: day/night, ₹ coins and notes; Class 1 adds clock reading and counting money
 - **Telugu / Hindi** (parent toggles): letter matching, letter sounds, first letter, picture words, number words, all with romanisation shown
 
+## Writing (Apple Pencil tracing)
+The ✏️ Writing tile is a round of tracing over a faint letter on notebook lines: capital letters (straight-line ones
+first), small letters, numbers 0–20, and Telugu / Hindi letters when they're on. Class 1 adds 3-letter words. A
+tracing task also turns up now and then in the adventure and subject rounds (at most one per round).
+- It uses PencilKit and follows the iPad's **Only Draw with Apple Pencil** setting: Pencil-only with palm rejection
+  when that setting is on, Pencil or finger when it's off.
+- `TraceScoring` checks that the ink covers most of the letter (≥ 65%) and that most of the ink stays on it (≥ 85%).
+  There's no stroke order or timer. It's tested against careful, wobbly, partial, scribbled and wrong-letter attempts.
+- Two tries, then a kind "good try". Results report under English, Numbers, Telugu or Hindi in HomeBuddy.
+
 ## Class levels
 The class (UKG or Class 1) is set in HomeBuddy. A UKG child sees only UKG skills (40, including Telugu and Hindi), and
 difficulty is capped at level 2: counting to 10, sums and take-aways within 10 using pictures, numbers to 20, and

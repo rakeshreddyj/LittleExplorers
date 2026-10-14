@@ -1,3 +1,4 @@
+import PencilKit
 import SwiftUI
 
 private let praise = ["Great job!", "Super!", "You got it!", "Well done!", "Wonderful!", "Brilliant!", "Yay!"]
@@ -21,17 +22,23 @@ struct QuizView: View {
     @State private var feedback = ""
     @State private var shake: CGFloat = 0
     @State private var levelUp = false
+    @State private var drawing = PKDrawing()
+    @State private var clearToken = 0
 
     private var q: Question? { questions.indices.contains(i) ? questions[i] : nil }
     private var tint: Color {
         if case .subject(let s) = mode { return s.color }
+        if mode == .writing { return Theme.writing }
         return q.flatMap { skillById[$0.skill]?.subject.color } ?? Theme.ink
     }
 
     var body: some View {
         VStack(spacing: 18) {
             topBar
-            if let q {
+            if let q, let t = q.trace {
+                traceCard(q, t)
+                feedbackRow
+            } else if let q {
                 card(q)
                 options(q)
                 feedbackRow
@@ -77,6 +84,49 @@ struct QuizView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 32).fill(Theme.card))
         .onTapGesture { speakQuestion() }
+    }
+
+    private func traceCard(_ q: Question, _ t: TraceTask) -> some View {
+        let done = solved != nil || revealed
+        return VStack(spacing: 16) {
+            if let def = skillById[q.skill] {
+                Text("✏️  \(def.name)").font(Theme.font(18, .semibold)).foregroundStyle(Theme.onColor)
+                    .padding(.horizontal, 14).padding(.vertical, 6).background(Capsule().fill(tint))
+            }
+            HStack(spacing: 16) {
+                Text(q.prompt).font(Theme.font(36)).foregroundStyle(Theme.ink).minimumScaleFactor(0.6)
+                if let hint = t.hint { Text(hint).font(Theme.font(28, .semibold)).foregroundStyle(Theme.muted) }
+            }
+            .onTapGesture { speakQuestion() }
+            TraceBoard(task: t, drawing: $drawing, clearToken: clearToken, enabled: !done, passed: solved != nil)
+            HStack(spacing: 24) {
+                Button("🧽 Clear") { clearBoard() }.buttonStyle(BigButtonStyle(color: Theme.deep))
+                    .disabled(done || drawing.strokes.isEmpty).opacity(done || drawing.strokes.isEmpty ? 0.4 : 1)
+                Button("✓ Done") { checkTrace(q, t) }.buttonStyle(BigButtonStyle(color: tint))
+                    .disabled(done || drawing.strokes.isEmpty).opacity(done || drawing.strokes.isEmpty ? 0.4 : 1)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 32).fill(Theme.card))
+    }
+
+    private func clearBoard() { drawing = PKDrawing(); clearToken += 1 }
+
+    private func checkTrace(_ q: Question, _ t: TraceTask) {
+        if TraceGlyph.check(drawing, text: t.text).passed {
+            markCorrect(q)
+        } else {
+            tries += 1
+            Chime.shared.play(correct: false)
+            if tries >= 2 {
+                revealWithKindness(q)
+            } else {
+                feedback = "Almost! Go slowly over the grey letter 💪"
+                Speech.shared.say("Almost! Go slowly over the grey letter. Try again.")
+                clearBoard()
+            }
+        }
     }
 
     private func options(_ q: Question) -> some View {
@@ -129,16 +179,7 @@ struct QuizView: View {
 
     private func tap(_ o: Option, in q: Question) {
         if o.id == q.answer {
-            let firstTry = tries == 0
-            solved = o.id
-            if firstTry { stars += 1 }
-            results.append(firstTry)
-            levelUp = store.record(q, firstTry: firstTry)
-            let p = levelUp ? "Level up! 🚀" : praise.any
-            feedback = (firstTry ? "⭐ " : "") + p
-            Chime.shared.play(correct: true)
-            Speech.shared.say(p)
-            Task { try? await Task.sleep(for: .seconds(1.6)); advance() }
+            markCorrect(q)
         } else {
             wrong.insert(o.id)
             tries += 1
@@ -146,11 +187,7 @@ struct QuizView: View {
             if !reduceMotion { withAnimation(.easeInOut(duration: 0.35)) { shake += 1 } }
             let remaining = q.options.count - wrong.count
             if tries >= 2 || remaining <= 1 {
-                revealed = true
-                results.append(false)
-                store.record(q, firstTry: false)
-                feedback = q.explain
-                Speech.shared.say("Good try! " + q.explain)
+                revealWithKindness(q)
             } else {
                 feedback = "Almost! Try again 💪"
                 Speech.shared.say("Almost! Try again.")
@@ -158,9 +195,31 @@ struct QuizView: View {
         }
     }
 
+    private func markCorrect(_ q: Question) {
+        let firstTry = tries == 0
+        solved = q.answer
+        if firstTry { stars += 1 }
+        results.append(firstTry)
+        levelUp = store.record(q, firstTry: firstTry)
+        let p = levelUp ? "Level up! 🚀" : praise.any
+        feedback = (firstTry ? "⭐ " : "") + p
+        Chime.shared.play(correct: true)
+        Speech.shared.say(p)
+        Task { try? await Task.sleep(for: .seconds(1.6)); advance() }
+    }
+
+    private func revealWithKindness(_ q: Question) {
+        revealed = true
+        results.append(false)
+        store.record(q, firstTry: false)
+        feedback = q.explain
+        Speech.shared.say("Good try! " + q.explain)
+    }
+
     private func advance() {
         guard solved != nil || revealed else { return }
         if i + 1 >= questions.count { onFinish(stars); return }
         i += 1; tries = 0; wrong = []; solved = nil; revealed = false; feedback = ""; levelUp = false
+        clearBoard()
     }
 }

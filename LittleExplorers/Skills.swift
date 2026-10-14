@@ -33,6 +33,7 @@ enum Subject: String, CaseIterable, Codable, Identifiable {
 enum Grades { case both, ukgOnly, c1Only }
 
 struct SkillDef {
+    var isTrace: Bool { id.contains("trace") }
     let id: String
     let name: String
     let subject: Subject
@@ -47,6 +48,7 @@ private func langSkills(_ p: LangPack, _ s: Subject) -> [SkillDef] {
         SkillDef(id: "\(p.code)_first", name: "\(p.name): first letter", subject: s, grades: .both) { LangGen.firstLetter(p, $0) },
         SkillDef(id: "\(p.code)_words", name: "\(p.name): words", subject: s, grades: .both) { LangGen.words(p, $0) },
         SkillDef(id: "\(p.code)_numbers", name: "\(p.name): numbers", subject: s, grades: .both) { LangGen.numbers(p, $0) },
+        SkillDef(id: "\(p.code)_trace", name: "\(p.name): writing letters", subject: s, grades: .both) { TraceGen.language(p, $0) },
     ]
 }
 
@@ -61,6 +63,7 @@ let allSkills: [SkillDef] = [
     .init(id: "numname", name: "Number names", subject: .math, grades: .c1Only, make: MathGen.numberNames),
     .init(id: "place", name: "Tens and ones", subject: .math, grades: .c1Only, make: MathGen.placeValue),
     .init(id: "story", name: "Story sums", subject: .math, grades: .c1Only, make: MathGen.story),
+    .init(id: "trace_num", name: "Writing numbers", subject: .math, grades: .both, make: TraceGen.numbers),
 
     .init(id: "letters", name: "Capital & small letters", subject: .english, grades: .ukgOnly, make: EnglishGen.letters),
     .init(id: "first", name: "First letter sounds", subject: .english, grades: .both, make: EnglishGen.firstLetter),
@@ -72,6 +75,9 @@ let allSkills: [SkillDef] = [
     .init(id: "opposite", name: "Opposites", subject: .english, grades: .both, make: EnglishGen.opposite),
     .init(id: "plural", name: "One and many", subject: .english, grades: .c1Only, make: EnglishGen.plural),
     .init(id: "article", name: "A or an", subject: .english, grades: .c1Only, make: EnglishGen.article),
+    .init(id: "trace_caps", name: "Writing capital letters", subject: .english, grades: .both, make: TraceGen.capitals),
+    .init(id: "trace_small", name: "Writing small letters", subject: .english, grades: .both, make: TraceGen.small),
+    .init(id: "trace_words", name: "Writing words", subject: .english, grades: .c1Only, make: TraceGen.words),
 
     .init(id: "homes", name: "Animal homes", subject: .evs, grades: .both, make: WorldGen.homes),
     .init(id: "sounds", name: "Animal sounds", subject: .evs, grades: .ukgOnly, make: WorldGen.sounds),

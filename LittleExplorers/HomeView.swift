@@ -22,6 +22,10 @@ struct HomeView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 20)], spacing: 20) {
                     ForEach(store.subjects) { s in
                         Button { start(.subject(s)) } label: { tile(s) }.buttonStyle(.plain)
+                        if s == .english {
+                            Button { start(.writing) } label: { tile(emoji: "✏️", title: "Writing", color: Theme.writing) }
+                                .buttonStyle(.plain)
+                        }
                     }
                 }
             }
@@ -86,13 +90,15 @@ struct HomeView: View {
         .background(RoundedRectangle(cornerRadius: 22).fill(Theme.card))
     }
 
-    private func tile(_ s: Subject) -> some View {
+    private func tile(_ s: Subject) -> some View { tile(emoji: s.emoji, title: s.title, color: s.color) }
+
+    private func tile(emoji: String, title: String, color: Color) -> some View {
         VStack(spacing: 10) {
-            Text(s.emoji).font(.system(size: 64, weight: .bold)).foregroundStyle(Theme.onColor)
-            Text(s.title).font(Theme.font(26)).foregroundStyle(Theme.onColor)
+            Text(emoji).font(.system(size: 64, weight: .bold)).foregroundStyle(Theme.onColor)
+            Text(title).font(Theme.font(26)).foregroundStyle(Theme.onColor)
         }
         .frame(maxWidth: .infinity, minHeight: 170)
-        .background(RoundedRectangle(cornerRadius: 28).fill(s.color))
+        .background(RoundedRectangle(cornerRadius: 28).fill(color))
     }
 }
 

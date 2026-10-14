@@ -65,8 +65,10 @@ struct Question: Codable, Identifiable {
     var explain: String = ""
     /// Read the choices aloud too — for children who can't read the buttons yet.
     var readOptions = false
+    /// Set for tracing questions (no answer buttons; the child writes on a PencilKit board instead).
+    var trace: TraceTask? = nil
 
-    var key: String { skill + prompt + say.map(\.text).joined() + "\(visual)" + options.map(\.id).sorted().joined() }
+    var key: String { skill + prompt + say.map(\.text).joined() + "\(visual)" + options.map(\.id).sorted().joined() + (trace?.text ?? "") }
     var correctOption: Option? { options.first { $0.id == answer } }
 }
 

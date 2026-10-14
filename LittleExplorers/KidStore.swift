@@ -23,7 +23,7 @@ struct Progress: Codable {
     var review: [Question] = []   // missed questions, asked again later
 }
 
-enum RoundMode: Hashable { case adventure, subject(Subject) }
+enum RoundMode: Hashable { case adventure, subject(Subject), writing }
 
 /// Local-first progress for one child. Everything works offline; it syncs to the HomeBuddy backend when it can.
 @MainActor
@@ -132,22 +132,38 @@ final class KidStore: ObservableObject {
         var qs: [Question] = []
         var seen = Set<String>()
         progress.review.removeAll { !isAvailable($0.skill) }   // drop missed questions from another class
+        if mode == .writing { return writingRound(size: 4) }
         if mode == .adventure, let missed = progress.review.first {
             progress.review.removeFirst()
             var q = missed; q.id = UUID()
             qs.append(q); seen.insert(q.key)
         }
         let order: [Subject] = { if case .subject(let s) = mode { return [s] }; return subjects.shuffled() }()
+        var traces = 0
         var last: String?
         var guardCount = 0
         while qs.count < size && guardCount < 80 {
             guardCount += 1
             let subject = order[qs.count % order.count]
             let def = pickSkill(in: subject, avoiding: last)
+            if def.isTrace { if traces >= 1 { continue }; traces += 1 }   // at most one tracing task in a mixed round
             var q = def.make(state(def.id).lvl)
             q.skill = def.id
             guard seen.insert(q.key).inserted else { continue }
             qs.append(q); last = def.id
+        }
+        return qs
+    }
+
+    /// A round of tracing only: letters, numbers (and Telugu / Hindi letters when those are switched on).
+    private func writingRound(size: Int) -> [Question] {
+        let pool = subjects.flatMap { skills(in: $0) }.filter(\.isTrace)
+        var qs: [Question] = [], seen = Set<String>(), guardCount = 0
+        while qs.count < size && guardCount < 40 && !pool.isEmpty {
+            guardCount += 1
+            let def = pool.any
+            var q = def.make(state(def.id).lvl); q.skill = def.id
+            if seen.insert(q.key).inserted { qs.append(q) }
         }
         return qs
     }
