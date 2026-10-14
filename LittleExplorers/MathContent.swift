@@ -23,7 +23,7 @@ let numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven"
 enum MathGen {
     static func count(_ l: Int) -> Question {
         let t = things.any
-        let n = l == 1 ? rnd(1, 6) : l == 2 ? rnd(3, 10) : rnd(8, 20)
+        let n = l == 1 ? rnd(3, 10) : l == 2 ? rnd(6, 20) : rnd(12, 30)
         return Question(prompt: "How many \(t.e)?", say: [.en("How many \(t.many) can you count?")],
                         visual: .emojis(t.e, count: n, crossed: 0), options: numOptions(n, lo: 1), answer: "\(n)",
                         explain: "There are \(n) \(t.word(n)).")
@@ -33,15 +33,16 @@ enum MathGen {
         let t = things.any
         let (a, b): (Int, Int) = {
             switch l {
-            case 1: let a = rnd(1, 4); return (a, rnd(1, 5 - a))
-            case 2: let a = rnd(1, 7); return (a, rnd(1, 10 - a))
+            case 1: let a = rnd(1, 5); return (a, rnd(1, 7 - a))
+            case 2: let a = rnd(2, 8); return (a, rnd(1, 10 - a))
             default: let a = rnd(5, 15); return (a, rnd(2, 20 - a))
             }
         }()
         let s = a + b
+        let pictured = l == 1 || (l == 2 && Bool.random())
         return Question(prompt: "\(a) + \(b) = ?",
-                        say: [.en(l < 3 ? "\(a) \(t.word(a)) and \(b) more. How many altogether?" : "What is \(a) plus \(b)?")],
-                        visual: l < 3 ? .addition(t.e, a: a, b: b) : .none, options: numOptions(s), answer: "\(s)",
+                        say: [.en(pictured ? "\(a) \(t.word(a)) and \(b) more. How many altogether?" : "What is \(a) plus \(b)?")],
+                        visual: pictured ? .addition(t.e, a: a, b: b) : .none, options: numOptions(s), answer: "\(s)",
                         explain: "\(a) plus \(b) makes \(s).")
     }
 
@@ -49,23 +50,24 @@ enum MathGen {
         let t = things.any
         let (a, b): (Int, Int) = {
             switch l {
-            case 1: let a = rnd(2, 5); return (a, rnd(1, a - 1))
-            case 2: let a = rnd(4, 10); return (a, rnd(1, a - 1))
+            case 1: let a = rnd(3, 7); return (a, rnd(1, a - 1))
+            case 2: let a = rnd(5, 10); return (a, rnd(1, a - 1))
             default: return (rnd(11, 20), rnd(2, 9))
             }
         }()
         let r = a - b
+        let pictured = l == 1 || (l == 2 && Bool.random())
         return Question(prompt: "\(a) − \(b) = ?",
-                        say: [.en(l < 3 ? "There are \(a) \(t.word(a)). \(b) are taken away. How many are left?" : "What is \(a) minus \(b)?")],
-                        visual: l < 3 ? .emojis(t.e, count: a, crossed: b) : .none, options: numOptions(r), answer: "\(r)",
+                        say: [.en(pictured ? "There are \(a) \(t.word(a)). \(b) are taken away. How many are left?" : "What is \(a) minus \(b)?")],
+                        visual: pictured ? .emojis(t.e, count: a, crossed: b) : .none, options: numOptions(r), answer: "\(r)",
                         explain: "\(a) take away \(b) leaves \(r).")
     }
 
     static func compare(_ l: Int) -> Question {
-        let hi = [10, 20, 100][l - 1]
+        let hi = [20, 50, 100][l - 1]
         let a = rnd(1, hi)
         var b = rnd(1, hi); while b == a { b = rnd(1, hi) }
-        let bigger = l < 3 || Bool.random()
+        let bigger = l < 2 || Bool.random()
         let ans = bigger ? max(a, b) : min(a, b)
         let word = bigger ? "bigger" : "smaller"
         return Question(prompt: "Which number is \(word)?", say: [.en("Which number is \(word)?")],
@@ -73,8 +75,8 @@ enum MathGen {
     }
 
     static func order(_ l: Int) -> Question {
-        let hi = [10, 20, 100][l - 1]
-        let kind = l == 1 ? "after" : l == 2 ? ["after", "before"].any : ["after", "before", "between"].any
+        let hi = [20, 50, 100][l - 1]
+        let kind = l == 1 ? ["after", "before"].any : ["after", "before", "between"].any
         switch kind {
         case "after":
             let n = rnd(1, hi - 1)
@@ -103,7 +105,7 @@ enum MathGen {
                             visual: .shape(s, shapeColors.any), options: numOptions(n, lo: 1, hi: 6), answer: "\(n)",
                             explain: "A \(s.rawValue) has \(n) sides.")
         }
-        let pool: [ShapeKind] = l == 1 ? [.circle, .square, .triangle] : ShapeKind.allCases
+        let pool: [ShapeKind] = l == 1 ? [.circle, .square, .triangle, .rectangle] : ShapeKind.allCases
         let target = pool.any
         let opts = choices(target, from: pool, n: l == 1 ? 3 : 4)
         let colors = shapeColors.shuffled()

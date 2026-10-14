@@ -14,6 +14,21 @@ struct DayStat: Codable {
     var questions = 0
     var correct = 0
     var adventure = 0     // mixed "adventure" rounds finished today
+    var stories = 0       // stories read today (kept on the iPad only)
+    var spoken = 0        // speaking tasks done well today (kept on the iPad only)
+
+    init() {}
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        secs = try c.decodeIfPresent(Int.self, forKey: .secs) ?? 0
+        rounds = try c.decodeIfPresent(Int.self, forKey: .rounds) ?? 0
+        stars = try c.decodeIfPresent(Int.self, forKey: .stars) ?? 0
+        questions = try c.decodeIfPresent(Int.self, forKey: .questions) ?? 0
+        correct = try c.decodeIfPresent(Int.self, forKey: .correct) ?? 0
+        adventure = try c.decodeIfPresent(Int.self, forKey: .adventure) ?? 0
+        stories = try c.decodeIfPresent(Int.self, forKey: .stories) ?? 0
+        spoken = try c.decodeIfPresent(Int.self, forKey: .spoken) ?? 0
+    }
 }
 
 struct Progress: Codable {
@@ -23,7 +38,7 @@ struct Progress: Codable {
     var review: [Question] = []   // missed questions, asked again later
 }
 
-enum RoundMode: Hashable { case adventure, subject(Subject), writing }
+enum RoundMode: Hashable { case adventure, subject(Subject), writing, speaking, story(String) }
 
 /// Local-first progress for one child. Everything works offline; it syncs to the HomeBuddy backend when it can.
 @MainActor
@@ -89,9 +104,16 @@ final class KidStore: ObservableObject {
         }
     }
 
+    /// Speaking practice is switched on by a grown-up (it needs the microphone and on-device speech recognition).
+    var speakingOn: Bool { UserDefaults.standard.bool(forKey: "speaking_on") && Listener.shared.ready }
+
     func skills(in subject: Subject) -> [SkillDef] {
-        allSkills.filter { $0.subject == subject && (isClassOne ? $0.grades != .ukgOnly : $0.grades != .c1Only) }
+        allSkills.filter {
+            $0.subject == subject && (isClassOne ? $0.grades != .ukgOnly : $0.grades != .c1Only) && (!$0.isSpeak || speakingOn)
+        }
     }
+
+    var storyShelf: [Story] { stories.filter { isClassOne || !$0.classOne } }
 
     /// UKG stays within the UKG syllabus (levels 1–2); level 3 is Class 1 material.
     var maxLevel: Int { isClassOne ? 3 : 2 }
@@ -102,14 +124,15 @@ final class KidStore: ObservableObject {
     }
 
     func state(_ id: String) -> SkillState {
-        var s = progress.skills[id] ?? SkillState(lvl: isClassOne && skillById[id]?.grades == .both ? 2 : 1)
+        let start = isClassOne && skillById[id]?.grades == .both ? 3 : 2
+        var s = progress.skills[id] ?? SkillState(lvl: start)
         s.lvl = min(s.lvl, maxLevel)   // e.g. if the class is changed back from Class 1 to UKG
         return s
     }
 
     /// Weaker and newer skills come up more often.
     private func pickSkill(in subject: Subject, avoiding last: String?) -> SkillDef {
-        let pool = skills(in: subject).filter { $0.id != last }
+        let pool = skills(in: subject).filter { $0.id != last && $0.inRounds }
         let weights = pool.map { def -> Double in
             let s = state(def.id)
             let acc = s.total == 0 ? 0.5 : Double(s.correct) / Double(s.total)
@@ -132,14 +155,16 @@ final class KidStore: ObservableObject {
         var qs: [Question] = []
         var seen = Set<String>()
         progress.review.removeAll { !isAvailable($0.skill) }   // drop missed questions from another class
-        if mode == .writing { return writingRound(size: 4) }
+        if case .story(let id) = mode { return stories.first { $0.id == id }?.quizQuestions() ?? [] }
+        if mode == .writing { return specialRound(\.isTrace, size: 4) }
+        if mode == .speaking { return specialRound(\.isSpeak, size: 4) }
         if mode == .adventure, let missed = progress.review.first {
             progress.review.removeFirst()
             var q = missed; q.id = UUID()
             qs.append(q); seen.insert(q.key)
         }
         let order: [Subject] = { if case .subject(let s) = mode { return [s] }; return subjects.shuffled() }()
-        var traces = 0
+        var traces = 0, speaks = 0
         var last: String?
         var guardCount = 0
         while qs.count < size && guardCount < 80 {
@@ -147,6 +172,7 @@ final class KidStore: ObservableObject {
             let subject = order[qs.count % order.count]
             let def = pickSkill(in: subject, avoiding: last)
             if def.isTrace { if traces >= 1 { continue }; traces += 1 }   // at most one tracing task in a mixed round
+            if def.isSpeak { if speaks >= 1 { continue }; speaks += 1 }   // and at most one speaking task
             var q = def.make(state(def.id).lvl)
             q.skill = def.id
             guard seen.insert(q.key).inserted else { continue }
@@ -155,9 +181,9 @@ final class KidStore: ObservableObject {
         return qs
     }
 
-    /// A round of tracing only: letters, numbers (and Telugu / Hindi letters when those are switched on).
-    private func writingRound(size: Int) -> [Question] {
-        let pool = subjects.flatMap { skills(in: $0) }.filter(\.isTrace)
+    /// A round of one kind only: tracing (letters, numbers, Telugu / Hindi letters) or speaking.
+    private func specialRound(_ kind: KeyPath<SkillDef, Bool>, size: Int) -> [Question] {
+        let pool = subjects.flatMap { skills(in: $0) }.filter { $0[keyPath: kind] }
         var qs: [Question] = [], seen = Set<String>(), guardCount = 0
         while qs.count < size && guardCount < 40 && !pool.isEmpty {
             guardCount += 1
@@ -168,7 +194,7 @@ final class KidStore: ObservableObject {
         return qs
     }
 
-    /// Records a first-try result. Four right in a row → harder; three of the last four wrong → easier.
+    /// Records a first-try result. Three right in a row → harder; three of the last four wrong → easier.
     /// Returns true when the child just levelled up.
     @discardableResult
     func record(_ q: Question, firstTry ok: Bool) -> Bool {
@@ -176,11 +202,11 @@ final class KidStore: ObservableObject {
         s.total += 1; if ok { s.correct += 1 }
         s.recent.append(ok); if s.recent.count > 6 { s.recent.removeFirst() }
         var levelUp = false
-        let last4 = s.recent.suffix(4)
-        if last4.count == 4 && last4.allSatisfy({ $0 }) && s.lvl < maxLevel { s.lvl += 1; s.recent = []; levelUp = true }
+        let last3 = s.recent.suffix(3), last4 = s.recent.suffix(4)
+        if last3.count == 3 && last3.allSatisfy({ $0 }) && s.lvl < maxLevel { s.lvl += 1; s.recent = []; levelUp = true }
         else if last4.filter({ !$0 }).count >= 3 && s.lvl > 1 { s.lvl -= 1; s.recent = [] }
         progress.skills[q.skill] = s
-        var d = today; d.questions += 1; if ok { d.correct += 1 }; today = d
+        var d = today; d.questions += 1; if ok { d.correct += 1 }; if ok && q.speak != nil { d.spoken += 1 }; today = d
         if !ok && !progress.review.contains(where: { $0.key == q.key }) {
             progress.review.append(q); if progress.review.count > 12 { progress.review.removeFirst() }
         }
@@ -193,6 +219,7 @@ final class KidStore: ObservableObject {
         var d = today
         d.rounds += 1; d.stars += stars
         if mode == .adventure { d.adventure += 1 }
+        if case .story = mode { d.stories += 1 }
         today = d
         let sticker = stickerSet[progress.stickers.count % stickerSet.count]
         progress.stickers.append(sticker)
@@ -221,7 +248,8 @@ final class KidStore: ObservableObject {
                 let d = progress.days[k]!
                 return .init(date: k, secs: d.secs, rounds: d.rounds, stars: d.stars, questions: d.questions, correct: d.correct)
             },
-            stickers: progress.stickers.count)
+            stickers: progress.stickers.count,
+            today: Self.dayKey())
         do {
             profile = try await APIClient.shared.sync(profileId: profile.id, payload)
             syncError = nil

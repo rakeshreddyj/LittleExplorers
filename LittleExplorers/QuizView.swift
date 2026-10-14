@@ -24,11 +24,14 @@ struct QuizView: View {
     @State private var levelUp = false
     @State private var drawing = PKDrawing()
     @State private var clearToken = 0
+    @ObservedObject private var listener = Listener.shared
+    @State private var heardMarks: [Bool] = []
 
     private var q: Question? { questions.indices.contains(i) ? questions[i] : nil }
     private var tint: Color {
         if case .subject(let s) = mode { return s.color }
         if mode == .writing { return Theme.writing }
+        if mode == .speaking { return Theme.accent }
         return q.flatMap { skillById[$0.skill]?.subject.color } ?? Theme.ink
     }
 
@@ -37,6 +40,9 @@ struct QuizView: View {
             topBar
             if let q, let t = q.trace {
                 traceCard(q, t)
+                feedbackRow
+            } else if let q, let sp = q.speak {
+                speakCard(q, sp)
                 feedbackRow
             } else if let q {
                 card(q)
@@ -109,6 +115,70 @@ struct QuizView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 32).fill(Theme.card))
+    }
+
+    /// Say it out loud: hear the model (🔊), then tap 🎤 and speak. Words she says turn green.
+    private func speakCard(_ q: Question, _ sp: SpeakTask) -> some View {
+        let done = solved != nil || revealed
+        let shown = SpeakMatch.words(sp.display.replacingOccurrences(of: "___", with: "*"))
+        return VStack(spacing: 22) {
+            if let def = skillById[q.skill] {
+                Text("🗣️  \(def.name)").font(Theme.font(18, .semibold)).foregroundStyle(Theme.onColor)
+                    .padding(.horizontal, 14).padding(.vertical, 6).background(Capsule().fill(tint))
+            }
+            if !q.prompt.hasPrefix("Say:") {
+                Text(q.prompt).font(Theme.font(36)).foregroundStyle(Theme.ink).multilineTextAlignment(.center)
+            }
+            VisualView(visual: q.visual)
+            // The words to say (hidden for "answer aloud" until revealed, so it stays a real question).
+            if sp.listenFirst || done {
+                FlowLayout(spacing: 12, lineSpacing: 12) {
+                    ForEach(Array(sp.display.split(separator: " ").enumerated()), id: \.offset) { k, w in
+                        let ok = heardMarks.indices.contains(k) && heardMarks[k] && k < shown.count
+                        Text(String(w)).font(Theme.font(44)).foregroundStyle(ok ? Theme.good : Theme.ink)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            Text(listener.listening ? "👂 \(listener.transcript.isEmpty ? "Listening…" : listener.transcript)"
+                 : listener.transcript.isEmpty ? " " : "I heard: “\(listener.transcript)”")
+                .font(Theme.font(24, .medium)).foregroundStyle(Theme.muted).lineLimit(2)
+            HStack(spacing: 24) {
+                Button("🔊 Hear it") { Speech.shared.model(sp.modelSpeech) }
+                    .buttonStyle(BigButtonStyle(color: Theme.deep))
+                    .disabled(listener.listening || (!sp.listenFirst && tries == 0 && !done))
+                    .opacity(listener.listening || (!sp.listenFirst && tries == 0 && !done) ? 0.35 : 1)
+                Button(listener.listening ? "Listening…" : "🎤 Say it") { listen(q, sp) }
+                    .buttonStyle(BigButtonStyle(color: tint))
+                    .disabled(done || listener.listening).opacity(done ? 0.35 : 1)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 32).fill(Theme.card))
+        .onDisappear { listener.cancel() }
+    }
+
+    private func listen(_ q: Question, _ sp: SpeakTask) {
+        feedback = ""
+        let hints = SpeakMatch.words(sp.target.replacingOccurrences(of: "|", with: " ")).filter { $0 != "*" }
+        listener.start(hints: hints) { said in
+            heardMarks = SpeakMatch.matches(target: sp.target.split(separator: "|").first.map(String.init) ?? sp.target, heard: said)
+            if SpeakMatch.passes(sp, heard: said) {
+                markCorrect(q)
+            } else {
+                tries += 1
+                if tries >= 3 {
+                    revealWithKindness(q)
+                } else if said.isEmpty {
+                    feedback = "I didn't hear you. Try again, nice and loud! 🎤"
+                    Speech.shared.say("I didn't hear you. Try again, nice and loud!")
+                } else {
+                    feedback = "Good try! Tap 🔊 to listen, then say it again."
+                    Speech.shared.say("Good try! Listen, then say it again.")
+                }
+            }
+        }
     }
 
     private func clearBoard() { drawing = PKDrawing(); clearToken += 1 }
@@ -221,5 +291,7 @@ struct QuizView: View {
         if i + 1 >= questions.count { onFinish(stars); return }
         i += 1; tries = 0; wrong = []; solved = nil; revealed = false; feedback = ""; levelUp = false
         clearBoard()
+        heardMarks = []
+        listener.reset()
     }
 }

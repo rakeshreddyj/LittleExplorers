@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var store: KidStore
     let start: (RoundMode) -> Void
+    let openStories: () -> Void
     let openStickers: () -> Void
     let openGrownUps: () -> Void
 
@@ -17,14 +18,21 @@ struct HomeView: View {
                         .background(RoundedRectangle(cornerRadius: 20).fill(Theme.highlight))
                 }
                 adventure
+                week
                 if store.today.rounds == 0 { postureTip }
                 Text("Explore").font(Theme.font(30)).foregroundStyle(Theme.ink)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 20)], spacing: 20) {
                     ForEach(store.subjects) { s in
                         Button { start(.subject(s)) } label: { tile(s) }.buttonStyle(.plain)
                         if s == .english {
+                            Button { openStories() } label: { tile(emoji: "📖", title: "Stories", color: Theme.stories) }
+                                .buttonStyle(.plain)
                             Button { start(.writing) } label: { tile(emoji: "✏️", title: "Writing", color: Theme.writing) }
                                 .buttonStyle(.plain)
+                            if store.speakingOn {
+                                Button { start(.speaking) } label: { tile(emoji: "🗣️", title: "Speaking", color: Theme.speaking) }
+                                    .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -78,6 +86,38 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 32)
             .fill(LinearGradient(colors: Theme.hero, startPoint: .topLeading, endPoint: .bottomTrailing)))
+    }
+
+    /// Daily scores for the last 7 days: stars earned each day (a record, not a streak to protect).
+    private var week: some View {
+        let cal = Calendar.current
+        let days = (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: Date()) }
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("My week").font(Theme.font(24)).foregroundStyle(Theme.ink)
+                Spacer()
+                let t = store.today
+                if t.questions > 0 {
+                    Text("Today: \(t.correct) of \(t.questions) right first time")
+                        .font(Theme.font(18, .semibold)).foregroundStyle(Theme.muted)
+                }
+            }
+            HStack(spacing: 10) {
+                ForEach(days, id: \.self) { day in
+                    let key = KidStore.dayKey(day)
+                    let stat = store.progress.days[key]
+                    let isToday = cal.isDateInToday(day)
+                    VStack(spacing: 6) {
+                        Text(day.formatted(.dateTime.weekday(.abbreviated))).font(Theme.font(15, .semibold)).foregroundStyle(Theme.muted)
+                        Text((stat?.stars ?? 0) > 0 ? "⭐\(stat!.stars)" : "·").font(Theme.font(20)).foregroundStyle(Theme.ink)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(RoundedRectangle(cornerRadius: 14).fill(isToday ? Theme.highlight : Theme.bg))
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: 24).fill(Theme.card))
     }
 
     private var postureTip: some View {
@@ -175,8 +215,18 @@ struct DoneForTodayView: View {
             Text("🌙").font(.system(size: 120))
             Text("All done for today, \(store.profile.name)!").font(Theme.font(46)).foregroundStyle(Theme.ink)
                 .multilineTextAlignment(.center)
-            Text("You earned ⭐ \(store.today.stars) stars and \(store.stickersToday) stickers today.")
-                .font(Theme.font(26, .semibold)).foregroundStyle(Theme.muted)
+            let t = store.today
+            VStack(spacing: 8) {
+                Text("Today's score").font(Theme.font(22)).foregroundStyle(Theme.muted)
+                HStack(spacing: 26) {
+                    scoreBit("⭐", "\(t.stars)", "stars")
+                    scoreBit("✅", t.questions > 0 ? "\(t.correct)/\(t.questions)" : "–", "right first time")
+                    scoreBit("📖", "\(t.stories)", t.stories == 1 ? "story" : "stories")
+                    if t.spoken > 0 { scoreBit("🗣️", "\(t.spoken)", "spoken") }
+                    scoreBit("🎁", "\(store.stickersToday)", "stickers")
+                }
+            }
+            .padding(20).background(RoundedRectangle(cornerRadius: 24).fill(Theme.card))
             VStack(spacing: 10) {
                 Text("Today's real-world mission").font(Theme.font(22)).foregroundStyle(Theme.onColor.opacity(0.9))
                 Text(store.mission).font(Theme.font(32)).foregroundStyle(Theme.onColor).multilineTextAlignment(.center)
@@ -192,11 +242,18 @@ struct DoneForTodayView: View {
             Speech.shared.say("All done for today! Here is your real world mission. " + plain(store.mission))
             // A grown-up may add bonus minutes from HomeBuddy; check now and then.
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(45))
                 await store.sync()
                 if !store.isTimeUp { onUnlocked(); return }
+                try? await Task.sleep(for: .seconds(30))
             }
         }
+    }
+}
+
+@MainActor private func scoreBit(_ icon: String, _ value: String, _ label: String) -> some View {
+    VStack(spacing: 2) {
+        Text("\(icon) \(value)").font(Theme.font(30)).foregroundStyle(Theme.ink)
+        Text(label).font(Theme.font(15, .medium)).foregroundStyle(Theme.muted)
     }
 }
 

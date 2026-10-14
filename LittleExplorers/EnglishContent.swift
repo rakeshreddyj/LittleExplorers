@@ -71,7 +71,7 @@ enum EnglishGen {
         let similar = Array(similarLetters[lower] ?? "")
         let others = (similar + alphabet.filter { $0 != lower }.shuffled()).filter { $0 != lower }.uniqued()
         let opts = ([lower] + others.prefix(l == 1 ? 2 : 3)).shuffled()
-        let toSmall = l < 3 || Bool.random()
+        let toSmall = l < 2 || Bool.random()
         return Question(prompt: toSmall ? "Find the small letter" : "Find the capital letter",
                         say: [.en(toSmall ? "Find the small letter for capital \(upper)." : "Find the capital letter for small \(lower).")],
                         visual: .bigText(toSmall ? String(upper) : String(lower)),
@@ -123,7 +123,7 @@ enum EnglishGen {
     static func missingLetter(_ l: Int) -> Question {
         let (w, e) = cvcWords.filter { $0.0.count == 3 }.any
         let chars = Array(w)
-        let idx = l < 3 ? 1 : [0, 1, 2].any
+        let idx = l < 2 ? 1 : [0, 1, 2].any
         let missing = chars[idx]
         let vowels = Array("aeiou"), consonants = Array("bcdfghlmnprstv")
         let pool = "aeiou".contains(missing) ? vowels : consonants
@@ -135,7 +135,7 @@ enum EnglishGen {
     }
 
     static func sightWords(_ l: Int) -> Question {
-        let pool = l < 3 ? sightWordsEasy : sightWordsHard
+        let pool = l == 1 ? sightWordsEasy : l == 2 ? sightWordsEasy + sightWordsHard : sightWordsHard
         let w = pool.any
         let opts = choices(w, from: pool, n: l == 1 ? 3 : 4)
         return Question(prompt: "Listen and find the word 🔊", say: [.en("Find the word: \(w).")],
@@ -146,7 +146,7 @@ enum EnglishGen {
     static func rhyme(_ l: Int) -> Question {
         let set = rhymeSets.any.shuffled()
         let w = set[0], ans = set[1]
-        let others = rhymeSets.filter { !$0.contains(w) }.flatMap { $0 }.sample(l == 1 ? 1 : 2)
+        let others = rhymeSets.filter { !$0.contains(w) }.flatMap { $0 }.sample(l == 1 ? 2 : 3)
         let opts = ([ans] + others).shuffled()
         return Question(prompt: "Which word rhymes with \(w)?", say: [.en("Which word rhymes with \(w)?")],
                         visual: wordEmoji[w].map { .bigEmoji($0) } ?? .bigText(w),
@@ -158,7 +158,7 @@ enum EnglishGen {
         let pair = opposites.any
         let (w, ans) = Bool.random() ? pair : (pair.1, pair.0)
         let pool = opposites.flatMap { [$0.0, $0.1] }.filter { $0 != w }
-        let opts = choices(ans, from: pool, n: 3)
+        let opts = choices(ans, from: pool, n: l == 1 ? 3 : 4)
         return Question(prompt: "Opposite of \(w)?", say: [.en("What is the opposite of \(w)?")],
                         visual: oppositeEmoji[w].map { .bigEmoji($0) } ?? .bigText(w),
                         options: opts.map { o in Option(id: o, face: oppositeEmoji[o].map { .emojiText($0, o) } ?? .text(o), spoken: .en(o)) },

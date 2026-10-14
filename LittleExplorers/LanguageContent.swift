@@ -117,7 +117,7 @@ enum LangGen {
     static func match(_ p: LangPack, _ l: Int) -> Question {
         let pool = l == 1 ? p.vowels : p.consonants
         let target = pool.any
-        let opts = ([target] + pool.filter { $0 != target }.sample(l == 3 ? 3 : 2)).shuffled()
+        let opts = ([target] + pool.filter { $0 != target }.sample(l == 1 ? 2 : 3)).shuffled()
         return Question(prompt: "Find the same letter", say: [.en("Find the same letter.")],
                         visual: .script(target.ch, roman: nil), options: opts.map { letterOption($0, showRoman: false) },
                         answer: target.ch, explain: "This letter says \(target.roman).")

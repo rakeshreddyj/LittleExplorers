@@ -3,12 +3,19 @@ import AVFoundation
 /// Reads questions aloud so children who can't read yet can still play. Uses Indian English, Telugu and Hindi voices
 /// when the iPad has them; a language with no voice is simply skipped (the romanisation is on screen instead).
 @MainActor
-final class Speech {
+final class Speech: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = Speech()
     private let synth = AVSpeechSynthesizer()
     var enabled = true
 
-    private init() {
+    // Read-along: called with the character range of each word as it is spoken, then once at the end.
+    private var readAlongUtterance: AVSpeechUtterance?
+    private var onWord: ((NSRange) -> Void)?
+    private var onFinish: (() -> Void)?
+
+    private override init() {
+        super.init()
+        synth.delegate = self
         try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
     }
 
@@ -43,7 +50,48 @@ final class Speech {
     }
 
     func say(_ text: String) { say([.en(text)]) }
-    func stop() { synth.stopSpeaking(at: .immediate) }
+    func stop() { synth.stopSpeaking(at: .immediate); readAlongUtterance = nil; onWord = nil; onFinish = nil }
+
+    /// Reads a story page slowly, reporting each word as it is spoken so the page can highlight it.
+    func readAlong(_ text: String, onWord: @escaping (NSRange) -> Void, onFinish: @escaping () -> Void) {
+        stop()
+        guard enabled, let v = voice(for: "en") else { onFinish(); return }
+        let u = AVSpeechUtterance(string: text)
+        u.voice = v
+        u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.75
+        u.pitchMultiplier = 1.1
+        readAlongUtterance = u
+        self.onWord = onWord; self.onFinish = onFinish
+        synth.speak(u)
+    }
+
+    /// A slow, clear model for "repeat after me".
+    func model(_ text: String) {
+        stop()
+        guard enabled, let v = voice(for: "en") else { return }
+        let u = AVSpeechUtterance(string: text)
+        u.voice = v
+        u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.7
+        synth.speak(u)
+    }
+
+    nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, willSpeakRangeOfSpeechString range: NSRange, utterance: AVSpeechUtterance) {
+        let text = utterance.speechString
+        Task { @MainActor in
+            // Compare by text: the synthesizer may hand back a different object than the one we queued.
+            if text == self.readAlongUtterance?.speechString { self.onWord?(range) }
+        }
+    }
+
+    nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        let text = utterance.speechString
+        Task { @MainActor in
+            guard text == self.readAlongUtterance?.speechString else { return }
+            let done = self.onFinish
+            self.readAlongUtterance = nil; self.onWord = nil; self.onFinish = nil
+            done?()
+        }
+    }
 }
 
 /// Soft two-note chime for right answers and a low, gentle tone for wrong ones — no harsh buzzers.

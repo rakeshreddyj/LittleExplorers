@@ -23,7 +23,7 @@ enum WorldGen {
     static func homes(_ l: Int) -> Question {
         let (e, a, h) = homes.any
         return spokenChoice(prompt: "Where does a \(a) live?", say: "Where does a \(a) live?", visual: .bigEmoji(e),
-                            answer: h, pool: homes.map(\.2), n: l == 1 ? 2 : 3, explain: "A \(a) lives in a \(plain(h)).")
+                            answer: h, pool: homes.map(\.2), n: l == 1 ? 3 : 4, explain: "A \(a) lives in a \(plain(h)).")
     }
 
     static let sounds: [(String, String, String)] = [
@@ -33,7 +33,7 @@ enum WorldGen {
     static func sounds(_ l: Int) -> Question {
         let (e, a, s) = sounds.any
         return spokenChoice(prompt: "What does a \(a) say?", say: "What sound does a \(a) make?", visual: .bigEmoji(e),
-                            answer: s, pool: sounds.map(\.2), explain: "A \(a) says \(s)!")
+                            answer: s, pool: sounds.map(\.2), n: l == 1 ? 3 : 4, explain: "A \(a) says \(s)!")
     }
 
     static let body: [(String, String)] = [
@@ -104,7 +104,7 @@ enum WorldGen {
     static func weather(_ l: Int) -> Question {
         let (e, w, item) = weather.any
         return spokenChoice(prompt: "What do we need?", say: "What do we need when \(w)?", visual: .bigEmoji(e),
-                            answer: item, pool: weather.map(\.2), explain: "When \(w), we use a \(plain(item)).")
+                            answer: item, pool: weather.map(\.2), n: l == 1 ? 3 : 4, explain: "When \(w), we use a \(plain(item)).")
     }
 
     static let habits: [(String, String)] = [

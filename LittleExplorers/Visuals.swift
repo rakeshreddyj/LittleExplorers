@@ -38,6 +38,8 @@ enum Theme {
     static var guide: Color { pick("#DCCFBD", "#5C5046") }       // faint letter to trace over
     static var inkPen: Color { pick("#5A5170", "#F2C98A") }      // tracing ink
     static var writing: Color { pick("#C98A6E", "#8E6450") }     // Writing tile
+    static var stories: Color { pick("#B98BB0", "#7E5E78") }     // Stories tile
+    static var speaking: Color { pick("#6FA7B8", "#4D7480") }    // Speaking tile
     static var plate: Color { pick("#F3ECE0", "#7A6A5B") }       // soft disc behind pictures so dark emoji stay visible at night
     static var hero: [Color] { evening ? [Color(hex: "#7A5640"), Color(hex: "#6E4A4A")] : [Color(hex: "#EDB27C"), Color(hex: "#E39A8E")] }
     static var shapeDim: Double { evening ? 0.85 : 1 }           // content colours are toned down a little at night

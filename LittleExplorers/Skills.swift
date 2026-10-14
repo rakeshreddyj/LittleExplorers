@@ -34,6 +34,9 @@ enum Grades { case both, ukgOnly, c1Only }
 
 struct SkillDef {
     var isTrace: Bool { id.contains("trace") }
+    var isSpeak: Bool { id.hasPrefix("speak") }
+    /// Story questions only make sense right after reading the story, so they never appear in rounds.
+    var inRounds: Bool { id != "story_time" }
     let id: String
     let name: String
     let subject: Subject
@@ -78,6 +81,10 @@ let allSkills: [SkillDef] = [
     .init(id: "trace_caps", name: "Writing capital letters", subject: .english, grades: .both, make: TraceGen.capitals),
     .init(id: "trace_small", name: "Writing small letters", subject: .english, grades: .both, make: TraceGen.small),
     .init(id: "trace_words", name: "Writing words", subject: .english, grades: .c1Only, make: TraceGen.words),
+    .init(id: "speak_words", name: "Speaking: words", subject: .english, grades: .both, make: SpeakGen.words),
+    .init(id: "speak_sentences", name: "Speaking: sentences", subject: .english, grades: .both, make: SpeakGen.sentences),
+    .init(id: "speak_answers", name: "Speaking: answers", subject: .english, grades: .both, make: SpeakGen.answers),
+    .init(id: "story_time", name: "Story time", subject: .english, grades: .both, make: { _ in stories[0].quizQuestions()[0] }),
 
     .init(id: "homes", name: "Animal homes", subject: .evs, grades: .both, make: WorldGen.homes),
     .init(id: "sounds", name: "Animal sounds", subject: .evs, grades: .ukgOnly, make: WorldGen.sounds),

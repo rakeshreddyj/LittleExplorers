@@ -12,6 +12,28 @@ FastAPI service (`/api/v1/kids`, running on `healthbuddy-vm`), and parents manag
 - **Time & Money**: day/night, ₹ coins and notes; Class 1 adds clock reading and counting money
 - **Telugu / Hindi** (parent toggles): letter matching, letter sounds, first letter, picture words, number words, all with romanisation shown
 
+## Stories (read-along)
+The 📖 Stories tile opens 10 short picture stories, 5–6 pages each: 7 for UKG and 3 more for Class 1. They include
+Thirsty Crow, Lion and Mouse, and Tortoise and Hare, retold in our own words. Each page is read aloud slowly and every
+word lights up as it's spoken; tap any word to hear it again. Two "what happened?" questions at the end count as a round
+and earn a sticker. With speaking practice on, "🎤 I'll read it!" turns the words she reads aloud green.
+
+## Speaking practice
+Turn it on in Grown-ups → English speaking. That asks for microphone and speech permission while a parent is holding the
+iPad. It adds a 🗣️ Speaking tile and at most one speaking task per mixed round:
+- **Say the word:** picture → say it (level 1 hears it first).
+- **Repeat after me:** short sentences, including "My name is ___" and "I am ___ years old".
+- **Answer aloud:** e.g. "What colour is the sky?"
+Recognition runs **on the iPad only** (`requiresOnDeviceRecognition`); nothing is recorded or kept. If an iPad can't
+recognise speech offline, a parent can allow Apple's online recognition. `SpeakMatch` forgives children's pronunciation
+("Kat" for cat, "for" for four) and word order, treats a/an/the as optional, and requires blanks like "My name is ___"
+to be filled.
+
+## Daily scores
+The home screen shows **My week**: stars for each of the last 7 days, plus today's "right first time". The end-of-day
+screen shows today's score (stars, right first time, stories, spoken, stickers). HomeBuddy's Kids screen has a Daily
+scores table. Bonus minutes and sync use each device's local date, so "+10 min" works in any time zone.
+
 ## Writing (Apple Pencil tracing)
 The ✏️ Writing tile is a round of tracing over a faint letter on notebook lines: capital letters (straight-line ones
 first), small letters, numbers 0–20, and Telugu / Hindi letters when they're on. Class 1 adds 3-letter words. A
@@ -24,7 +46,7 @@ tracing task also turns up now and then in the adventure and subject rounds (at 
 
 ## Class levels
 The class (UKG or Class 1) is set in HomeBuddy. A UKG child sees only UKG skills (40, including Telugu and Hindi), and
-difficulty is capped at level 2: counting to 10, sums and take-aways within 10 using pictures, numbers to 20, and
+difficulty starts at level 2, moves up after 3 right in a row, and is capped there for UKG: counting to 10, sums and take-aways within 10 using pictures, numbers to 20, and
 easy sight words. Class 1 unlocks 12 more skills (clock, money, tens and ones, story sums, plurals, a/an, months,
 plants, and more) and level 3.
 

@@ -49,7 +49,7 @@ struct RootView: View {
 }
 
 enum Screen: Equatable {
-    case home, quiz(RoundMode, Int), roundEnd(stars: Int, sticker: String, mode: RoundMode), brainBreak(eye: Bool), done, stickers
+    case home, quiz(RoundMode, Int), roundEnd(stars: Int, sticker: String, mode: RoundMode), brainBreak(eye: Bool), done, stickers, stories, story(String)
 }
 
 struct KidRootView: View {
@@ -67,7 +67,8 @@ struct KidRootView: View {
         Group {
             switch screen {
             case .home:
-                HomeView(start: begin, openStickers: { screen = .stickers }, openGrownUps: { gate = true })
+                HomeView(start: begin, openStories: { screen = .stories }, openStickers: { screen = .stickers },
+                         openGrownUps: { gate = true })
             case .quiz(let mode, _):
                 QuizView(mode: mode,
                          onFinish: { stars in
@@ -89,6 +90,12 @@ struct KidRootView: View {
                 DoneForTodayView(openGrownUps: { gate = true }, onUnlocked: { screen = .home })
             case .stickers:
                 StickerBookView { screen = .home }
+            case .stories:
+                StoryShelfView(onPick: { s in screen = store.isTimeUp ? .done : .story(s.id) }, onClose: { screen = .home })
+            case .story(let id):
+                if let s = stories.first(where: { $0.id == id }) {
+                    StoryReaderView(story: s, onDone: { begin(.story(id)) }, onQuit: { screen = .stories })
+                }
             }
         }
         .id(palette.evening)   // only flips between rounds, see below
@@ -97,22 +104,32 @@ struct KidRootView: View {
             if store.isTimeUp { screen = .done }
             #if DEBUG
             if !(ProcessInfo.processInfo.environment["LE_SKILL"] ?? "").isEmpty { screen = .quiz(.adventure, 0) }
+            if let id = ProcessInfo.processInfo.environment["LE_STORY"], stories.contains(where: { $0.id == id }) { screen = .story(id) }
             #endif
-            Task { await store.sync() }
+            Task {
+                await store.sync()
+                if screen == .done && !store.isTimeUp { screen = .home }   // a grown-up added minutes from HomeBuddy
+            }
         }
         .onReceive(clock) { _ in
             guard phase == .active, !gate, !parent else { return }
-            if case .quiz = screen {} else { palette.refresh() }   // never switch palette mid-question
+            switch screen { case .quiz, .story: break; default: palette.refresh() }   // never switch palette mid-question or mid-story
             switch screen {
-            case .home, .quiz, .roundEnd, .stickers:
+            case .home, .quiz, .roundEnd, .stickers, .stories, .story:
                 store.tick(5)
                 // Never cut a round off mid-way; the limit is checked between rounds.
-                if store.isTimeUp, screen == .home || screen == .stickers { screen = .done }
+                if store.isTimeUp, screen == .home || screen == .stickers || screen == .stories { screen = .done }
             default: break
             }
         }
         .onChange(of: phase) { _, p in
-            if p == .active { Task { await store.sync(); if store.isTimeUp && screen == .home { screen = .done } } }
+            if p == .active {
+                Task {
+                    await store.sync()
+                    if store.isTimeUp && screen == .home { screen = .done }
+                    else if !store.isTimeUp && screen == .done { screen = .home }
+                }
+            }
             if p == .background { store.save() }
         }
         .sheet(isPresented: $gate) {

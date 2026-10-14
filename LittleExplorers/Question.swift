@@ -67,8 +67,10 @@ struct Question: Codable, Identifiable {
     var readOptions = false
     /// Set for tracing questions (no answer buttons; the child writes on a PencilKit board instead).
     var trace: TraceTask? = nil
+    /// Set for speaking questions: the child answers out loud (on-device speech recognition).
+    var speak: SpeakTask? = nil
 
-    var key: String { skill + prompt + say.map(\.text).joined() + "\(visual)" + options.map(\.id).sorted().joined() + (trace?.text ?? "") }
+    var key: String { skill + prompt + say.map(\.text).joined() + "\(visual)" + options.map(\.id).sorted().joined() + (trace?.text ?? "") + (speak?.target ?? "") }
     var correctOption: Option? { options.first { $0.id == answer } }
 }
 
@@ -91,7 +93,7 @@ func choices<T: Hashable>(_ ans: T, from pool: [T], n: Int = 3) -> [T] {
 }
 
 /// Number answers with nearby distractors (kept inside lo...hi).
-func numOptions(_ ans: Int, n: Int = 3, lo: Int = 0, hi: Int = 10_000, steps: [Int] = [1, -1, 2, -2, 3, -3],
+func numOptions(_ ans: Int, n: Int = 4, lo: Int = 0, hi: Int = 10_000, steps: [Int] = [1, -1, 2, -2, 3, -3],
                 rupees: Bool = false) -> [Option] {
     var vals = [ans]
     for d in steps.shuffled() + [4, -4, 5, -5, 6, 7, 8, 9, 10, 11] where vals.count < n {

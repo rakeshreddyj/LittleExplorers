@@ -35,6 +35,7 @@ struct KidSyncPayload: Encodable {
     let skills: [Skill]
     let days: [Day]
     let stickers: Int
+    let today: String   // this iPad's local date, so bonus minutes from HomeBuddy land on the same day
 }
 
 /// Thin async/await wrapper over the /api/v1 endpoints the kids app needs.

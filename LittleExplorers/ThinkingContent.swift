@@ -62,7 +62,7 @@ enum ThinkingGen {
     static func pattern(_ l: Int) -> Question {
         let s = patternSets.any.shuffled()
         let a = s[0], b = s[1], c = s[2]
-        let unit: [String] = l == 1 ? [a, b] : l == 2 ? [[a, a, b], [a, b, c]].any : [[a, b, b], [a, a, b, b], [a, b, c, c]].any
+        let unit: [String] = l == 1 ? [[a, b], [a, a, b]].any : l == 2 ? [[a, b, c], [a, b, b], [a, a, b, b]].any : [[a, b, c, c], [a, a, b, c], [a, b, b, c]].any
         let len = max(5, unit.count * 2 - 1)
         let seq = (0..<len).map { unit[$0 % unit.count] }
         let ans = unit[len % unit.count]
@@ -74,7 +74,7 @@ enum ThinkingGen {
 
     static func days(_ l: Int) -> Question {
         let i = rnd(0, 6)
-        let after = l < 3 || Bool.random()
+        let after = l < 2 || Bool.random()
         let ans = weekDays[(i + (after ? 1 : 6)) % 7]
         let pool = weekDays.filter { $0 != weekDays[i] }
         return Question(prompt: "Which day comes \(after ? "after" : "before") \(weekDays[i])?",

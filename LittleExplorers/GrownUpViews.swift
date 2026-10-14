@@ -48,6 +48,9 @@ struct ParentView: View {
     @State private var syncing = false
     @State private var soundOn = Speech.shared.enabled
     @AppStorage("eye_mode") private var eyeMode = EyeMode.auto.rawValue
+    @AppStorage("speaking_on") private var speakingOn = false
+    @AppStorage("speech_online") private var speechOnline = false
+    @ObservedObject private var listener = Listener.shared
 
     var body: some View {
         NavigationStack {
@@ -77,6 +80,29 @@ struct ParentView: View {
                     Text("Built in: soft low-glare colours, an eye break (look far away) at least every 8 minutes, and a reminder to hold the iPad at arm's length. On the iPad, also turn on **Settings → Screen Time → Screen Distance** (warns if the iPad is held too close) and **Display & Brightness → Night Shift**, and keep brightness similar to the room.")
                         .font(.footnote).foregroundStyle(.secondary)
                 } header: { Text("Eye comfort") }
+                Section {
+                    Toggle("Speaking practice", isOn: $speakingOn)
+                        .onChange(of: speakingOn) { _, on in if on { Task { await listener.requestPermission() } } }
+                    if speakingOn {
+                        switch listener.status {
+                        case .ready:
+                            Label(listener.onDevice ? "Ready — speech is recognised on this iPad only" : "Ready — using Apple's online recognition",
+                                  systemImage: "checkmark.circle").foregroundStyle(.green)
+                        case .denied:
+                            Text("Microphone or Speech Recognition is turned off. Allow both for Little Explorers in iPad **Settings → Privacy & Security**.")
+                                .font(.footnote).foregroundStyle(.orange)
+                        case .unsupported:
+                            Text("This iPad can't recognise English speech offline. You can allow Apple's online recognition below (audio is sent to Apple to be turned into text).")
+                                .font(.footnote).foregroundStyle(.orange)
+                        case .notAsked:
+                            Button("Allow microphone") { Task { await listener.requestPermission() } }
+                        }
+                        Toggle("Allow online recognition if needed", isOn: $speechOnline)
+                            .onChange(of: speechOnline) { _, _ in listener.refresh() }
+                    }
+                    Text("Adds a 🗣️ Speaking tile (say the word, repeat after me, answer aloud) and lets her read story pages aloud. Nothing is recorded or kept.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                } header: { Text("English speaking") }
                 Section("Voices") {
                     Toggle("Read questions aloud", isOn: $soundOn).onChange(of: soundOn) { _, v in Speech.shared.enabled = v }
                     ForEach([("English (India)", "en"), ("Telugu", "te"), ("Hindi", "hi")], id: \.1) { name, code in
